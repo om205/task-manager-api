@@ -12,9 +12,9 @@ router.post('/tasks', auth, async (req, res) => {
     })
     try {
         await task.save()
-        res.status(201).send(task)
+        res.status(201).send({success: true, data: task})
     } catch (e) {
-        res.status(400).send(e)
+        res.status(400).send({success: false, error:e})
     }
 })
 
@@ -27,6 +27,8 @@ router.get('/tasks', auth, async (req, res) => {
         // res.send(tasks)
         const match = {}
         const sort = {}
+        const limit = parseInt(req.query.limit)
+        const skip = parseInt(req.query.skip)
         if(req.query.completed)
         match.completed = req.query.completed === 'true'
 
@@ -38,14 +40,16 @@ router.get('/tasks', auth, async (req, res) => {
             path: 'tasks',
             match,
             options: {
-                limit: parseInt(req.query.limit),
-                skip: parseInt(req.query.skip),
+                limit,
+                skip,
                 sort
             }
         })
-        res.send(req.user.tasks)
+        const totalCount = await Task.countDocuments(match);
+        const currentPage = parseInt(skip / limit) + 1;
+        res.send({ success: true, pagination: {totalCount, currentPage, limit}, data: req.user.tasks})
     } catch (e) {
-        res.status(500).send()
+        res.status(500).send({ success: false, error:e})
     }
 })
 
@@ -54,10 +58,10 @@ router.get('/tasks/:id', auth, async (req, res) => {
     try {
         // const task = await Task.findById(_id)
         const task = await Task.findOne({ _id, owner: req.user._id })
-        if(!task) return res.status(404).send()
-        res.send(task)
+        if(!task) return res.status(404).send({success: false, message: 'Task not found.'})
+        res.send({success: true, data: task})
     } catch (e) {
-        res.status(500).send()
+        res.status(500).send({success: false, error:e})
     }
 })
 
@@ -74,12 +78,12 @@ router.patch('/tasks/:id', auth, async (req, res) => {
         // const task = await Task.findById(req.params.id)
         const task = await Task.findOne({ _id: req.params.id, owner: req.user._id })
 
-        if(!task) return res.status(400).send()
+        if(!task) return res.status(400).send({ success: false, message: 'Task not found.'})
         Updates.forEach(update => task[update] = req.body[update])
         await task.save()
-        res.send(task)
+        res.send({success: true, data: task, message: 'Task updated successfully.'})
     } catch (e) {
-        res.status(400).send(e)
+        res.status(400).send({success: false, error:e})
     }
 })
 
@@ -88,9 +92,9 @@ router.delete('/tasks/:id', auth, async (req, res) => {
     try {
         const task = await Task.findOneAndDelete({ _id:req.params.id, owner: req.user._id})
         if(!task) return res.status(404).send()
-        res.send(task)
+        res.send({ success: true, data: task, message: 'Task deleted successfully.'})
     } catch (e) {
-        res.status(500).send()
+        res.status(500).send({success: false, error:e})
     }
 })
 

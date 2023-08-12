@@ -3,7 +3,6 @@ const validator = require('validator')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const Task = require('./tasks')
-const { Binary } = require('mongodb')
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -73,7 +72,7 @@ userSchema.method('toJSON', function() {
 
 userSchema.method('generateAuthToken', async function() {
     const user = this
-    const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET)
+    const token = jwt.sign({_id: user._id.toString()}, process.env.JWT_SECRET, { expiresIn: '2 days' })
     user.tokens = user.tokens.concat({token})
     await user.save()
     return token
@@ -82,10 +81,10 @@ userSchema.method('generateAuthToken', async function() {
 //Syntax in tutorial is outdated
 userSchema.static('findByCredentials', async (email, password) => {
     const user = await User.findOne({email})
-    if(!user) throw {error:'not able to login'}
+    if(!user) throw {message:'not able to login'}
     // throw new Error('not able to login')
     const isMatch = await bcrypt.compare(password, user.password)
-    if(!isMatch) throw {error:'unable to login'}
+    if(!isMatch) throw {message:'unable to login'}
     // throw new Error('unable to login')
     return user
 })
